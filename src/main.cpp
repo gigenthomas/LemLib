@@ -1,29 +1,49 @@
 #include "main.h"
 #include "lemlib/api.hpp"
+#include <iostream>
+#include <fstream>
+
+
+#define LEFT_FRONT_PORT       21
+#define LEFT_MIDDLE_PORT      8
+#define LEFT_BACK_PORT        7
+#define RIGHT_FRONT_PORT      18
+#define RIGHT_MIDDLE_PORT     11
+#define RIGHT_BACK_PORT       13
+#define INERTIAL_SENSOR_PORT  9
+#define CA_PORT               1
+#define INTAKE_PORT           6
+
 
 // controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // drive motors
-pros::Motor lF(-12, pros::E_MOTOR_GEARSET_06); // left front motor. port 12, reversed
-pros::Motor lM(-11, pros::E_MOTOR_GEARSET_06); // left middle motor. port 11, reversed
-pros::Motor lB(-1, pros::E_MOTOR_GEARSET_06); // left back motor. port 1, reversed
-pros::Motor rF(19, pros::E_MOTOR_GEARSET_06); // right front motor. port 2
-pros::Motor rM(20, pros::E_MOTOR_GEARSET_06); // right middle motor. port 11
-pros::Motor rB(9, pros::E_MOTOR_GEARSET_06); // right back motor. port 13
+pros::Motor lF(LEFT_FRONT_PORT, pros::E_MOTOR_GEARSET_06 ,true); // left front motor.  Tracking Wheel 
+pros::Motor lM(LEFT_MIDDLE_PORT, pros::E_MOTOR_GEARSET_06,true); // left middle motor. port 11, reversed
+pros::Motor lB(LEFT_BACK_PORT, pros::E_MOTOR_GEARSET_06,true); // left back motor. port 1, reversed
+pros::Motor rF(RIGHT_FRONT_PORT, pros::E_MOTOR_GEARSET_06,false); // right front motor.  Tracking Wheel 
+pros::Motor rM(RIGHT_MIDDLE_PORT, pros::E_MOTOR_GEARSET_06,false ); // right middle motor. port 11
+pros::Motor rB(RIGHT_BACK_PORT, pros::E_MOTOR_GEARSET_06,false ); // right back motor. port 13
 
 // motor groups
 pros::MotorGroup leftMotors({lF, lM, lB}); // left motor group
 pros::MotorGroup rightMotors({rF, rM, rB}); // right motor group
 
+pros::Motor_Group leftTrackingWheelMotors({lF}); // left motor group
+pros::Motor_Group righTrackingWheelMotors({rF}); // left motor group
+
+
 // Inertial Sensor on port 2
-pros::Imu imu(2);
+pros::Imu imu(INERTIAL_SENSOR_PORT);
 
 // tracking wheels
-// horizontal tracking wheel encoder. Rotation sensor, port 15, reversed (negative signs don't work due to a pros bug)
-pros::Rotation horizontalEnc(15, true);
-// horizontal tracking wheel. 2.75" diameter, 3.7" offset, back of the robot (negative)
-lemlib::TrackingWheel horizontal(&horizontalEnc, lemlib::Omniwheel::NEW_275, -3.7);
+
+lemlib::TrackingWheel left_tracking_wheel(&leftTrackingWheelMotors, 3.25, -5.6875,360); // 2.75" wheel diameter, -4.6" offset from tracking center
+// right tracking wheel
+lemlib::TrackingWheel right_tracking_wheel(&righTrackingWheelMotors, 3.25, 5.6875,360); // 2.75" wheel diameter, 1.7" offset from tracking center
+
+
 
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&leftMotors, // left motor group
@@ -60,9 +80,9 @@ lemlib::ControllerSettings angularController(2, // proportional gain (kP)
 
 // sensors for odometry
 // note that in this example we use internal motor encoders (IMEs), so we don't pass vertical tracking wheels
-lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel 1, set to null
-                            nullptr, // vertical tracking wheel 2, set to nullptr as we are using IMEs
-                            &horizontal, // horizontal tracking wheel 1
+lemlib::OdomSensors sensors(&left_tracking_wheel, // vertical tracking wheel 1, set to null
+                            &right_tracking_wheel, // vertical tracking wheel 2, set to nullptr as we are using IMEs
+                            nullptr, // horizontal tracking wheel 1
                             nullptr, // horizontal tracking wheel 2, set to nullptr as we don't have a second one
                             &imu // inertial sensor
 );
@@ -117,35 +137,39 @@ void competition_initialize() {}
 // get a path used for pure pursuit
 // this needs to be put outside a function
 ASSET(example_txt); // '.' replaced with "_" to make c++ happy
-
+//ASSET(path_txt); // '.' replaced with "_" to make c++ happy
 /**
  * Runs during auto
  *
  * This is an example autonomous routine which demonstrates a lot of the features LemLib has to offer
  */
 void autonomous() {
+
+   //readFile2();
+
     // example movement: Move to x: 20 and y: 15, and face heading 90. Timeout set to 4000 ms
-    chassis.moveToPose(20, 15, 90, 4000);
+      chassis.follow("/usd/path.txt", 2000, 15);
+    //chassis.moveToPose(20, 15, 90, 4000);
     // example movement: Move to x: 0 and y: 0 and face heading 270, going backwards. Timeout set to 4000ms
-    chassis.moveToPose(0, 0, 270, 4000, {.forwards = false});
+   // chassis.moveToPose(0, 0, 270, 4000, {.forwards = false});
     // cancel the movement after it has travelled 10 inches
-    chassis.waitUntil(10);
-    chassis.cancelMotion();
+   // chassis.waitUntil(10);
+   // chassis.cancelMotion();
     // example movement: Turn to face the point x:45, y:-45. Timeout set to 1000
     // dont turn faster than 60 (out of a maximum of 127)
-    chassis.turnTo(45, -45, 1000, true, 60);
+   // chassis.turnTo(45, -45, 1000, true, 60);
     // example movement: Follow the path in path.txt. Lookahead at 15, Timeout set to 4000
     // following the path with the back of the robot (forwards = false)
     // see line 116 to see how to define a path
-    chassis.follow(example_txt, 15, 4000, false);
+   // chassis.follow(example_txt, 15, 4000, false);
     // wait until the chassis has travelled 10 inches. Otherwise the code directly after
     // the movement will run immediately
     // Unless its another movement, in which case it will wait
-    chassis.waitUntil(10);
-    pros::lcd::print(4, "Travelled 10 inches during pure pursuit!");
+    //chassis.waitUntil(10);
+   // pros::lcd::print(4, "Travelled 10 inches during pure pursuit!");
     // wait until the movement is done
-    chassis.waitUntilDone();
-    pros::lcd::print(4, "pure pursuit finished!");
+    //chassis.waitUntilDone();
+   pros::lcd::print(4, "pure pursuit finished!");
 }
 
 /**
@@ -163,4 +187,46 @@ void opcontrol() {
         // delay to save resources
         pros::delay(10);
     }
+}
+
+
+void readFile () {
+
+    FILE* usd_file_read = fopen("/usd/aleena.txt", "r");
+    char buf[50]; // This just needs to be larger than the contents of the file
+    fread(buf, 1, 50, usd_file_read); // passing 1 because a `char` is 1 byte, and 50 b/c it's the length of buf
+  
+     pros::lcd::print(5, "%s", buf);
+  
+    // Should print "Example text" to the terminal
+    fclose(usd_file_read); // 
+
+}
+
+void readFile2 () {
+    
+    
+    std::string line;
+    std::ifstream file("/usd/aleena.txt");
+    if (file.is_open()) {
+        while (getline(file, line)) {
+           
+        }
+        file.close();
+    }
+
+    const char* str = line.c_str(); 
+    pros::lcd::print(5, "%s", str);
+
+}
+
+
+
+
+
+void writeFile(){
+
+     FILE* usd_file_write = fopen("/usd/aleena.txt", "w");
+    fputs("Example text", usd_file_write);
+    fclose(usd_file_write);
 }
